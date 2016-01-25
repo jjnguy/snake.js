@@ -1,0 +1,197 @@
+<html>
+<head>
+    <title>snake.js</title>
+    <style>
+        canvas {
+            border: 1px solid #dadada;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="can-vas" width="400" height="400"></canvas>
+    <script>
+        Array.prototype.any = function (predacate) {
+            var result = false;
+            this.forEach(function (element) {
+                if (predacate(element)) result = true;
+            });
+            return result;
+        }
+        Array.prototype.skip = function (num) {
+            var result = [];
+            for (var i = num; i < this.length; i++) {
+                result.push(this[i]);
+            }
+            return result;
+        };
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min)) + min;
+        }
+
+        CanvasRenderingContext2D.prototype.withColor = function (color, drawingCode) {
+            var oldColor = this.fillStyle;
+            this.fillStyle = color;// "rgb(200,0,0)";
+
+            drawingCode(this);
+
+            this.fillStyle = oldColor;
+        }
+
+    </script>
+    <script>
+        var canvas = document.getElementById('can-vas');
+
+        var directions = {
+            east: function (oldHead) {
+                return { x: oldHead.x + 1, y: oldHead.y };
+            },
+            west: function (oldHead) {
+                return { x: oldHead.x - 1, y: oldHead.y };
+            },
+            north: function (oldHead) {
+                return { x: oldHead.x, y: oldHead.y - 1 };
+            },
+            south: function (oldHead) {
+                return { x: oldHead.x, y: oldHead.y + 1 };
+            }
+        };
+
+        var snake = new Snake(canvas);
+        snake.start();
+
+        function Snake(canvas) {
+            var self = this;
+            var gridSize = 15;
+            var width = 30;
+
+            var state = {
+                growSnake: 0
+            };
+
+            canvas.width = width * gridSize;
+            canvas.height = width * gridSize;
+            var gameDim = {
+                height: canvas.height / gridSize, width: canvas.width / gridSize
+            };
+            var ctx = canvas.getContext('2d');
+
+            var snake = {
+                pos: [{
+                    x: gameDim.width / 2,
+                    y: gameDim.height / 2
+                }],
+                dir: directions.east
+            };
+            var apple = undefined;
+
+            function drawGame() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawSnake();
+                drawApple();
+                drawScore();
+            }
+
+            function drawSnake() {
+                ctx.withColor('green', function () {
+                    ctx.fillRect(snake.pos[0].x * gridSize, snake.pos[0].y * gridSize, gridSize, gridSize);
+                });
+                snake.pos.skip(1).forEach(function (segment) {
+                    ctx.fillRect(segment.x * gridSize, segment.y * gridSize, gridSize, gridSize);
+                });
+            }
+
+            function drawApple() {
+                if (apple) {
+                    ctx.withColor('red', function () {
+                        ctx.fillRect(apple.x * gridSize, apple.y * gridSize, gridSize, gridSize);
+                    });
+                }
+            }
+
+            function drawScore() {
+                var score = snake.pos.length - 1;
+                ctx.fillText('score: ' + score, 5, 15);
+            }
+
+            function tick() {
+                var newHead = snake.dir(snake.pos[0]);
+                snake.pos.unshift(newHead);
+                if (!state.growSnake) {
+                    snake.pos.pop();
+                } else {
+                    state.growSnake--;
+                }
+            }
+
+            function checkDeath() {
+                // wall death
+                if (snake.pos[0].x > width || snake.pos[0].y > width
+                    || snake.pos[0].x < 0 || snake.pos[0].y < 0) {
+                    alert('You hit a wall');
+                    clearInterval(intervalId);
+                    throw 'You hit a wall';
+                }
+                // body death
+                if (snake.pos.skip(1).any(function (item) {
+                    return item.x == snake.pos[0].x && item.y == snake.pos[0].y;
+                })) {
+                    alert('You ate yourself');
+                    clearInterval(intervalId);
+                    throw 'You ate yourself';
+                }
+            }
+
+            function checkAppleEat() {
+                if (!apple) return;
+                if (snake.pos[0].x == apple.x && snake.pos[0].y == apple.y) {
+                    state.growSnake = apple.size;
+                    apple = undefined;
+                }
+            }
+
+            function spawnApple() {
+                if (apple) return;
+                var random = Math.random();
+                if (random > .8) {
+                    apple = {
+                        x: getRandomInt(0, width),
+                        y: getRandomInt(0, width),
+                        size: getRandomInt(1, 4)
+                    };
+                }
+            }
+
+            var intervalId;
+            var fps = 15;
+            self.start = function () {
+                intervalId = setInterval(function () {
+                    drawGame();
+                    tick();
+                    checkDeath();
+                    checkAppleEat();
+                    spawnApple();
+                }, 1000 / fps);
+            };
+
+
+            window.addEventListener('keydown', function (event) {
+                switch (event.keyCode) {
+                    case 37: // Left
+                        snake.dir = directions.west;
+                        break;
+                    case 38: // Up
+                        snake.dir = directions.north;
+                        break;
+                    case 39: // Right
+                        snake.dir = directions.east;
+                        break;
+                    case 40: // Down
+                        snake.dir = directions.south;
+                        break;
+                }
+            }, false);
+        }
+    </script>
+</body>
+</html>
